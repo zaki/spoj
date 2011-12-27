@@ -10,14 +10,10 @@ class Rect
 end
 
 class Event
-  attr_accessor :type, :x, :index
+  attr_accessor :type, :index
 
-  def initialize(type, x, index)
-    @type, @x, @index = type, x, index
-  end
-
-  def <=>(other)
-    @x <=> other.x
+  def initialize(type, index)
+    @type, @index = type,index
   end
 end
 
@@ -31,28 +27,34 @@ class Nkmars
       rects << Rect.new(x1,y1,x2,y2)
     end
 
-    events = []
+    events = {}
     rects.each_with_index do |r, i|
-      events << Event.new(:in,  r.x1, i)
-      events << Event.new(:out, r.x2, i)
+      events[r.x1] ||= []
+      events[r.x2] ||= []
+      events[r.x1] << Event.new(:in,  i)
+      events[r.x2] << Event.new(:out, i)
     end
 
     area = 0
     active = []
     x = 0
-    events.sort.each do |event|
-      rect  = rects[event.index]
-      x_now = event.type == :in ? rect.x1 : rect.x2
-
+    events.keys.sort.each do |event_x|
+      dirty = false
+      x_now = event_x
       unless active.empty?
         area += get_area(active, x, x_now)
       end
+      events[event_x].each do |event|
+        rect  = rects[event.index]
 
-      if (event.type == :in)
-        active << rect
-      else
-        active.delete(rect)
+        if (event.type == :in)
+          active << rect
+          dirty = true
+        else
+          active.delete(rect)
+        end
       end
+      active.sort! if dirty
       x = x_now
     end
 
@@ -61,7 +63,6 @@ class Nkmars
   end
 
   def get_area(active, x1, x2)
-    active.sort!
     total_length = 0
     last_y = active[0].y1
     active.each do |rect|
